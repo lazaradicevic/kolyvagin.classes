@@ -1,0 +1,152 @@
+E:=EllipticCurve("1058d1");
+p:=5;
+D:=-79;
+
+
+
+prec:=250;
+Cf:=ComplexField(prec);
+
+
+K:=QuadraticField(D);
+p:=ClassNumber(K);
+OK:=MaximalOrder(K);
+
+La:=AbelianExtension(1*OK);
+OL:=MaximalOrder(La);
+
+L:=NumberField(La);
+am:=ArtinMap(La);
+
+L:=AbsoluteField(L);
+L:=OptimisedRepresentation(L);
+OL:=RingOfIntegers(L);
+bas:=Basis(OL);
+G:=Automorphisms(L);
+j:=2;
+while G[j]^p ne G[1] do j:=j+1; end while;
+sigma:=G[j];
+j:=2;
+while G[j]^2 ne G[1] do j:=j+1; end while;
+cc:=G[j];
+
+HF := HeegnerForms(E,D : Use_wQ:=false, UseAtkinLehner:=false);
+Hforms := [x[1] : x in HF];
+OK:=RingOfIntegers(K);
+Cl, fromCl := RingClassGroup(OK);
+
+forms_id:=[(Ideal(h)/Ideal(Hforms[1])) : h in Hforms];
+Q:=QuadraticForms(D);
+
+aut:=[am(i): i in forms_id];
+
+time Hpt := ModularParametrization(E,Hforms : Precision:=prec);
+Hpts:=[EllipticExponential(E,pt) : pt in Hpt];
+
+function rpt(Hpts,s);
+
+pl1:=InfinitePlaces(L)[1];
+aut:=[am(i^(-s)): i in forms_id];
+
+function em(x);
+
+ex:=[];
+for i in [1..p] do
+	ex[i]:=Cf!Evaluate(aut[i](x),pl1 : Precision:=prec);
+end for;
+return ex;
+end function;
+
+function rec(conj);
+A:=[];
+for i in [1..2*p] do A[i]:=em(bas[i]); end for;
+for i in [2*p+1..4*p] do A[i]:=[A[i-2*p][j]*conj[j] : j in [1..p]]; end for;
+
+A1:=[];
+for j in [1..4*p] do 
+	A1[j]:=[];
+	for i in [1..p] do
+		A1[j][2*i-1]:=Real(A[j][i]);
+		A1[j][2*i]:=Imaginary(A[j][i]);
+	end for;
+end for;
+
+A2:=[[i eq j select 1 else 0 : i in [1..4*p]] : j in [1..4*p]];
+
+H:=10^prec;
+A1:=[[Round(H*A1[i][j]) : j in [1..2*p]] : i in [1..4*p]];
+
+//final matrix used to recognize the Heegner point:
+
+
+mL:=[A2[i] cat A1[i] : i in [1..4*p]];
+return Matrix(mL);
+end function;
+
+xc:=[Hpts[i][1] : i in [1..p]];
+mL:=rec(xc);
+bla,b:=LLL(mL : Proof:=false, EarlyReduction:=true, Fast:=1);
+
+test:=-&+[b[1][i]*bas[i] : i in [1..2*p]]/&+[b[1][i]*bas[i-2*p] : i in [2*p+1..4*p]];
+r:=-&+[b[1][i]*bas[i] : i in [1..2*p]];
+t:=&+[b[1][i]*bas[i-2*p] : i in [2*p+1..4*p]];
+
+tp:=em(t^2);
+yc:=[tp[i]*Hpts[i][2] : i in [1..p]];
+
+bla,b:=LLL(rec(yc) :  Proof:=false, EarlyReduction:=true, Fast:=1);
+sy:=-&+[b[1][i]*bas[i] : i in [1..2*p]];
+ty:=&+[b[1][i]*bas[i-2*p] : i in [2*p+1..4*p]];
+
+
+if ty eq 0 then return 0; 
+	else
+	testy:=sy/(t^2*ty);
+	Fe:=Evaluate(Equation(E),[test,testy,1]);
+	if Fe eq 0 then return E(L)![test,testy,1]; 
+		else
+		return 0;
+	end if;
+end if;
+
+
+end function;
+
+function recpt(Hpts);
+s:=1;
+pt:=rpt(Hpts,1);
+if pt cmpeq 0 then pt:=rpt(Hpts,-1); s:=-1; end if;
+return pt;
+end function;
+
+
+function gp(g,R);
+return E(L)![g(R[1]),g(R[2])];
+end function;
+
+p1:=InfinitePlaces(L)[1];
+
+Rst:=E(L)![sigma(cc(R[1])),sigma(cc(R[2]))];
+R1:=Rst-R;
+
+
+E1,wmap:=WeierstrassModel(E);
+R:=E1(L)![wmap(R1)[1],wmap(R1)[2],wmap(R1)[3]];
+
+E2:=E1;
+
+R:=recpt(Hpts);
+R1:=R;
+bH:=&+[E(L)![g(R[1]),g(R[2])] : g in aut];
+bH:=E(K)!bH;
+R:=R-bH/p;
+R:=R+E(L)![sigma(cc(R[1])),sigma(cc(R[2]))];
+	
+E1,wmap:=WeierstrassModel(E);
+R:=E1(L)![wmap(R)[1],wmap(R)[2],wmap(R)[3]];
+_,sD:=IsSquare(K!D);
+
+if AnalyticRank(E) ge 1 then 
+E1:=QuadraticTwist(E1,D);
+R:=E1(L)![sD^2*R[1],(sD^3)*R[2]];
+end if;
