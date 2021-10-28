@@ -1,0 +1,177 @@
+E:=EllipticCurve("681b3");
+p:=3;
+D:=-107;
+
+// Input data: an elliptic curve E, a Heegner discriminant D, and a prime p. Output data: if succesful, a Heegner point defined over the ring class field associated to D
+// from which one can obtain a an element of Sha(E/Q)[p] using Kolyvagin's construction. 
+
+prec:=250;
+Cf:=ComplexField(prec);
+
+// prec is the precision used when invoking ModularParametrization. It determines the precision of the floating point approximations to the Heegner point. 
+// If the algorithm does not succeed, increase the value of prec.  
+
+
+K:=QuadraticField(D);
+p:=ClassNumber(K);
+OK:=MaximalOrder(K);
+
+La:=AbelianExtension(1*OK);
+OL:=MaximalOrder(La);
+
+L:=NumberField(La);
+am:=ArtinMap(La);
+
+L:=AbsoluteField(L);
+L:=OptimisedRepresentation(L);
+OL:=RingOfIntegers(L);
+bas:=Basis(OL);
+G:=Automorphisms(L);
+j:=2;
+while G[j]^p ne G[1] do j:=j+1; end while;
+sigma:=G[j];
+j:=2;
+while G[j]^2 ne G[1] do j:=j+1; end while;
+cc:=G[j];
+
+//L is the ring class field associated to D. It is a dihedral extension of Q.
+
+HF := HeegnerForms(E,D : Use_wQ:=false, UseAtkinLehner:=false);
+Hforms := [x[1] : x in HF];
+OK:=RingOfIntegers(K);
+Cl, fromCl := RingClassGroup(OK);
+
+forms_id:=[(Ideal(h)/Ideal(Hforms[1])) : h in Hforms];
+Q:=QuadraticForms(D);
+
+aut:=[am(i): i in forms_id];
+
+// The variable Hforms is the array of Galois conjugates of a Heegner point, viewed as quadratic surds, or elements in the upper half-plane. 
+// We compute the Galois action on Hforms explicitly using class field theory (Artin map). 
+
+time Hpt := ModularParametrization(E,Hforms : Precision:=prec);
+Hpts:=[EllipticExponential(E,pt) : pt in Hpt];
+
+//Hpts are (floating point approximations to) Heegner points, now viewed as actual points on a Weierstrass model of E.
+
+
+//the following function uses the LLL algorithm to guess an algebraic expression for the denominator of the x-coordinate of the Heegner point, as explained
+// in my thesis. The way this is coded now, it needs a second parameter s, which takes value -1 or 1. It is introduced because of an ambiguity - 
+// Artin map gives as an isomorphism Z/p=Cl(L)=Gal(L/K). Instead of considering 2p Galois conjugates of the Heegner point, we break them up into two sets of p conjugates
+// related by complex conjugation, and try to guess the denominator for two sets separately, according to whether s=1 or -1. As coded now, for one set it will always return nonsense,
+// because the Galois action would not be normalised correctly, and for the other set it will return the correct answer, if enough precision is used.
+
+//It is entirely possible that the above convoluted method does not actually give any meaningful improvement over just looking at all 2p conjugates simultaneously.
+
+
+function rpt(Hpts,s);
+
+pl1:=InfinitePlaces(L)[1];
+aut:=[am(i^(-s)): i in forms_id];
+
+function em(x);
+
+ex:=[];
+for i in [1..p] do
+	ex[i]:=Cf!Evaluate(aut[i](x),pl1 : Precision:=prec);
+end for;
+return ex;
+end function;
+
+function rec(conj);
+A:=[];
+for i in [1..2*p] do A[i]:=em(bas[i]); end for;
+for i in [2*p+1..4*p] do A[i]:=[A[i-2*p][j]*conj[j] : j in [1..p]]; end for;
+
+A1:=[];
+for j in [1..4*p] do 
+	A1[j]:=[];
+	for i in [1..p] do
+		A1[j][2*i-1]:=Real(A[j][i]);
+		A1[j][2*i]:=Imaginary(A[j][i]);
+	end for;
+end for;
+
+A2:=[[i eq j select 1 else 0 : i in [1..4*p]] : j in [1..4*p]];
+
+H:=10^prec;
+A1:=[[Round(H*A1[i][j]) : j in [1..2*p]] : i in [1..4*p]];
+
+//final matrix used to recognize the Heegner point:
+
+
+mL:=[A2[i] cat A1[i] : i in [1..4*p]];
+return Matrix(mL);
+end function;
+
+xc:=[Hpts[i][1] : i in [1..p]];
+mL:=rec(xc);
+bla,b:=LLL(mL : Proof:=false, EarlyReduction:=true, Fast:=1);
+
+test:=-&+[b[1][i]*bas[i] : i in [1..2*p]]/&+[b[1][i]*bas[i-2*p] : i in [2*p+1..4*p]];
+r:=-&+[b[1][i]*bas[i] : i in [1..2*p]];
+t:=&+[b[1][i]*bas[i-2*p] : i in [2*p+1..4*p]];
+
+tp:=em(t^2);
+yc:=[tp[i]*Hpts[i][2] : i in [1..p]];
+
+bla,b:=LLL(rec(yc) :  Proof:=false, EarlyReduction:=true, Fast:=1);
+sy:=-&+[b[1][i]*bas[i] : i in [1..2*p]];
+ty:=&+[b[1][i]*bas[i-2*p] : i in [2*p+1..4*p]];
+
+
+if ty eq 0 then return 0; 
+	else
+	testy:=sy/(t^2*ty);
+	Fe:=Evaluate(Equation(E),[test,testy,1]);
+	if Fe eq 0 then return E(L)![test,testy,1]; 
+		else
+		return 0;
+	end if;
+end if;
+
+
+end function;
+
+function recpt(Hpts);
+s:=1;
+pt:=rpt(Hpts,1);
+if pt cmpeq 0 then pt:=rpt(Hpts,-1); s:=-1; end if;
+return pt;
+end function;
+
+// Instead of computing the Heegner point directly, we subtract from it 1/p*(y_K), where y_K is the basic Heegner point y_K=Trace_(L/K). There are p^2 candidates for 1/p*(y_K),
+// so we try each in turn, until we recognize the point. 
+
+//pt:=recpt(Hpts);
+//R:=pt-ptr;
+
+
+
+trlat:=&+[h: h in Hpt]; 
+trlatcc:=Conjugate(trlat);
+
+rp,ip:=Explode(Periods(E : Precision:=prec));
+for i in [1..p] do
+for j in [1..p] do
+pdc:=(trlat+i*rp+j*ip)/p;
+testreal:=EllipticExponential(E,pdc)[1];
+HPc:=[EllipticExponential(E,Hpt[i]-pdc) : i in [1..p]];
+time R1:=recpt(HPc); 
+if R1 cmpne 0 then R:=R1; end if;
+end for;
+end for;
+
+
+function gp(g,R);
+return E(L)![g(R[1]),g(R[2])];
+end function;
+
+p1:=InfinitePlaces(L)[1];
+
+Rst:=E(L)![sigma(cc(R[1])),sigma(cc(R[2]))];
+R1:=Rst-R;
+
+
+E1,wmap:=WeierstrassModel(E);
+R:=E1(L)![wmap(R1)[1],wmap(R1)[2],wmap(R1)[3]];
