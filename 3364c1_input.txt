@@ -1,0 +1,13 @@
+E:=EllipticCurve("3364c1");
+p:=7;
+D:=-71;
+
+> L;
+Number Field with defining polynomial $.1^14 - 7*$.1^13 + 25*$.1^12 - 59*$.1^11
+    + 103*$.1^10 - 141*$.1^9 + 159*$.1^8 - 153*$.1^7 + 129*$.1^6 - 95*$.1^5 +
+    58*$.1^4 - 27*$.1^3 + 10*$.1^2 - 3*$.1 + 1 over the Rational Field
+
+
+short Weierstrass equation for E
+
+Elliptic Curve defined by y^2 = x^3 - 4062871*x - 3152083138 over L
