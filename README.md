@@ -1,3 +1,5 @@
 Code and explicit examples accompanying the paper "Explicit realisation of elements of Tate-Shafarevich group constructed from Kolyvagin classes".
 
-Execute the code by inputting an elliptic curve E, a Heegner discriminant D and a prime p into MAGMA, then running one of either heegner_point_code_original.txt or heegner_point_code_version2.txt. The first one computes the Heegner point z_K, while the other one computes the point Rsigma directly. Depending on the situation, one might be faster than the other. To compute the corresponding Kolyvagin class, paste in the code from kolyvagin_class_minimization.txt.
+The file kolyvagin_complete_code.txt contains the MAGMA code to compute equations for a Kolyvagin class  from a elliptic curve E, a Heegner discriminant D and a prime p into MAGMA. The code comes with preloaded example E, D and p. The file Heegner_point_code.txt contains the part of the code to compute the Heegner point associated to this data, and the file kolyvagin_class_equations.txt contains the code to compute the equations from the Heegner point. It can be compiled after running  Heegner_point_code.txt. 
+
+The folders 1058d1, 3364c1, 37a1 and 681b3 contain computed examples for the elliptic curves with corresponding label in Cremona database.
