@@ -1,6 +1,6 @@
-E:=EllipticCurve("37a1");
-p:=11;
-D:=-2731;
+E:=EllipticCurve("3364c1");
+p:=7;
+D:=-71;
 prec:=250;
 procedure kol(E,d,p,prec,opt);
 // Input data: an elliptic curve E, a Heegner discriminant D, and a prime p. Output data: if succesful, a Heegner point defined over the ring class field associated to D
